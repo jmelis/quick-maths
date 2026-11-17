@@ -1,0 +1,1080 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Quick maths</title>
+<style>
+  :root {
+    --bg: #FFF8E8;
+    --ink: #1F2937;
+    --btn: #2B59C3;
+    --btn-off: #C9CED8;
+    --go: #2B9348;
+    --bad: #D62839;
+    --add: #2B59C3;
+    --sub: #7A35C7;
+    --mul: #D9480F;
+    --num: #0E7C86;
+    --card: #fff;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: "Nunito", "Arial Rounded MT Bold", "Trebuchet MS", system-ui, sans-serif; font-weight: 800;
+    display: flex; flex-direction: column; overflow: hidden;
+    user-select: none; -webkit-user-select: none; touch-action: manipulation;
+  }
+  .screen {
+    flex: 1; min-height: 0; display: flex; flex-direction: column; align-items: center;
+    padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+  }
+
+  /* ---------- buttons ---------- */
+  .btn {
+    min-width: 56px; min-height: 56px; padding: 0 14px; border: 0; border-radius: 28px;
+    background: var(--btn); color: #fff; font-family: inherit; font-weight: 800; font-size: 36px; line-height: 1; cursor: pointer;
+    display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.22); transition: transform .1s, box-shadow .1s;
+  }
+  .btn:active { transform: translateY(3px); box-shadow: 0 1px 0 rgba(0,0,0,.22); }
+  .btn:focus-visible { outline: 4px solid #111; outline-offset: 3px; }
+  .btn[disabled] { background: var(--btn-off); box-shadow: none; cursor: default; }
+  .btn.go { background: var(--go); min-height: 88px; padding: 0 56px; border-radius: 44px; font-size: 52px; }
+  .btn.go[disabled] { background: var(--btn-off); }
+  .btn.plain { background: #6B7280; }
+
+  /* ---------- setup ---------- */
+  #setup, #records { overflow: hidden; }
+  .setup-foot .row { display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 10px 14px; }
+  .btn.small { min-height: 64px; padding: 0 26px; font-size: 30px; }
+
+  /* ---------- records ---------- */
+  .reclist { width: min(100%, 720px); display: flex; flex-direction: column; gap: 12px; }
+  .rec { display: flex; align-items: center; gap: 12px; background: var(--card); border: 5px solid #E5DFCE; border-radius: 26px; padding: 10px 14px; }
+  .rec .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+  .rec .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { background: var(--c); color: #fff; border-radius: 999px; padding: 3px 14px; font-size: 26px; white-space: nowrap; }
+  .rec .meta { font-size: 21px; color: #6B7280; }
+  .rec .score { font-size: 60px; line-height: 1; color: var(--btn); min-width: 1.6ch; text-align: right; }
+  .rec .score.time { font-size: 44px; }
+  .rec .btn { min-width: 56px; padding: 0; background: var(--go); font-size: 26px; }
+  .rec .btn.del { background: #6B7280; font-size: 24px; }
+  .rec.asking { background: #FFF1F2; border-color: var(--bad); flex-wrap: wrap; }
+  .rec .ask { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; }
+  .rec .ask .q { font-size: 26px; color: var(--bad); }
+  .rec .ask .btn { padding: 0 20px; min-height: 52px; font-size: 26px; border-radius: 26px; background: #6B7280; }
+  .rec .ask .btn.danger { background: var(--bad); }
+  .empty { font-size: clamp(26px, 5vw, 38px); color: #6B7280; text-align: center; margin-top: 40px; }
+  .setup-body { flex: 1; min-height: 0; width: 100%; overflow-y: auto; display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 4px 0 8px; }
+  .setup-foot { flex: none; display: flex; flex-direction: column; align-items: center; gap: 6px; padding-top: 6px; }
+  #setup h1 { margin: 0; font-size: clamp(34px, 7vw, 56px); text-align: center; line-height: 1.05; }
+  #setup h1 small { display: block; font-size: .5em; color: #4B5563; }
+  .cards { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; width: 100%; }
+  .card {
+    --c: var(--btn-off);
+    flex: 1 1 320px; max-width: 440px; background: var(--card); border: 5px solid var(--c); border-radius: 28px;
+    padding: 12px 14px 14px; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  }
+  .card.num { --c: var(--num); }
+  .card.signs { --c: #6B7280; }
+  .modes { display: flex; gap: 6px; padding: 6px; border-radius: 40px; background: #E5DFCE; }
+  .mode {
+    min-height: 60px; padding: 0 30px; border: 0; border-radius: 34px; background: transparent; color: #4B5563;
+    font-family: inherit; font-weight: 800; font-size: 30px; cursor: pointer;
+  }
+  .mode[aria-pressed="true"] { background: var(--btn); color: #fff; box-shadow: 0 3px 0 rgba(0,0,0,.22); }
+  .mode:focus-visible { outline: 4px solid #111; outline-offset: 3px; }
+  .opbtn {
+    width: 100%; min-height: 68px; border: 0; border-radius: 34px; cursor: pointer; font-family: inherit;
+    background: var(--c); color: #fff; font-weight: 800; font-size: 27px;
+    display: flex; align-items: center; justify-content: space-between; padding: 0 18px 0 14px; gap: 8px;
+    box-shadow: 0 4px 0 rgba(0,0,0,.22);
+  }
+  .opbtn[data-op="add"] { --c: var(--add); }
+  .opbtn[data-op="sub"] { --c: var(--sub); }
+  .opbtn[data-op="mul"] { --c: var(--mul); }
+  .opbtn.off { background: #6B7280; opacity: .65; }
+  .opbtn.static { cursor: default; box-shadow: none; }
+  .opbtn:focus-visible { outline: 4px solid #111; outline-offset: 3px; }
+  .opbtn .sym { font-size: 44px; line-height: 1; min-width: 1ch; text-align: center; }
+  .opbtn .name { flex: 1; text-align: left; }
+  .opbtn .state { font-size: 32px; }
+  .range { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .field { display: flex; align-items: center; gap: 12px; font-size: 24px; color: #4B5563; }
+  .field > span { min-width: 4ch; text-align: right; }
+  .stepper { display: flex; align-items: center; gap: 8px; color: var(--ink); }
+  .stepper output { min-width: 2.1ch; text-align: center; font-size: 46px; }
+  .stepper .btn { min-width: 52px; min-height: 52px; padding: 0; font-size: 34px; }
+  .stepper .btn { background: var(--c); }
+  .stepper .btn[disabled] { background: var(--btn-off); }
+  .best { font-size: clamp(26px, 5vw, 38px); text-align: center; min-height: 1.3em; }
+  .best.none { color: #6B7280; }
+
+  /* short screens (phone on its side): give the cards more room */
+  @media (max-height: 520px) {
+    #setup h1 { font-size: 34px; }
+    #setup h1 small { display: none; }
+    .mode { min-height: 48px; padding: 0 22px; font-size: 24px; }
+    #setup .btn.go { min-height: 64px; padding: 0 44px; font-size: 40px; }
+    #setup .btn.small { min-height: 52px; font-size: 24px; }
+    #setup .best { font-size: 22px; }
+  }
+
+  /* ---------- play ---------- */
+  #play { padding: 0; align-items: stretch; }
+  .play-grid {
+    flex: 1; min-height: 0; display: grid; gap: 10px; padding: max(12px, env(safe-area-inset-top)) 14px max(12px, env(safe-area-inset-bottom));
+    grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr) minmax(0, 46%);
+    grid-template-areas: "top" "q" "pad";
+  }
+  .top { grid-area: top; display: flex; align-items: center; gap: 14px; }
+  .clock { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
+  .clock output { font-size: clamp(44px, 9vw, 72px); min-width: 2.1ch; text-align: right; line-height: 1; font-variant-numeric: tabular-nums; }
+  .bar { flex: 1; height: 18px; border-radius: 9px; background: #E5DFCE; overflow: hidden; }
+  .bar i { display: block; height: 100%; background: var(--go); transform-origin: left; transition: transform .1s linear, background .3s; }
+  .clock.low output { color: var(--bad); animation: pulse 1s infinite; }
+  .clock.low .bar i { background: var(--bad); }
+  .scorebox { font-size: clamp(36px, 7vw, 56px); line-height: 1; display: flex; align-items: center; gap: 8px; }
+  .scorebox output { min-width: 1.6ch; text-align: right; display: inline-block; font-variant-numeric: tabular-nums; }
+
+  .qwrap { grid-area: q; position: relative; display: flex; align-items: center; justify-content: center; min-height: 0; }
+  /* The equation on one row, the answer box on its own row below it. */
+  .question {
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .12em;
+    font-size: clamp(52px, 18vmin, 150px); line-height: 1.1; white-space: nowrap;
+  }
+  .eq { display: flex; align-items: center; justify-content: center; gap: .22em; }
+  .question .op { color: var(--c, var(--ink)); }
+  .question .n { color: var(--ink); }
+  .ans {
+    /* fixed width, big enough for the longest possible answer (--digits is set from LIMITS), so it never resizes while she types */
+    width: calc(var(--digits, 3) * 1ch + .7em); min-height: 1.25em; padding: 0 .2em; border-radius: .22em; text-align: center;
+    font-variant-numeric: tabular-nums;
+    background: #fff; border: .06em solid var(--ink); color: var(--ink);
+  }
+  .ans:not(.full):not(.wrong)::after { content: ''; display: inline-block; width: .06em; height: .9em; margin-left: .04em; vertical-align: -.1em; background: var(--btn); animation: blink 1s steps(1) infinite; }
+  .ans.wrong { border-color: var(--bad); color: var(--bad); background: #FFE9EB; animation: shake .45s; }
+  .hint { position: absolute; left: 0; right: 0; bottom: 4%; text-align: center; font-size: clamp(26px, 5vmin, 44px); color: var(--bad); min-height: 1.2em; }
+  .banner {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; text-align: center;
+    background: var(--bg); font-size: clamp(80px, 26vmin, 240px); color: var(--btn);
+  }
+  .banner.pop span { display: inline-block; animation: popin .7s ease-out; }
+
+  .pad { grid-area: pad; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 10px; width: min(100%, 520px); justify-self: center; min-height: 0; }
+  .pad .btn { width: 100%; height: 100%; min-height: 0; border-radius: 22px; font-size: clamp(30px, 7vmin, 56px); }
+  .pad .btn.back { background: #6B7280; }
+  .pad .gap { visibility: hidden; }
+
+  @media (min-aspect-ratio: 13/10) {
+    .play-grid { grid-template-columns: 1fr minmax(240px, 40%); grid-template-rows: auto minmax(0, 1fr);
+      grid-template-areas: "top top" "q pad"; }
+    .pad { width: 100%; }
+    .question { font-size: clamp(48px, min(17vmin, 11vw), 150px); }
+  }
+
+  /* ---------- result ---------- */
+  #result { justify-content: safe center; gap: 12px; text-align: center; overflow-y: auto; overflow-x: hidden; position: relative; }
+  #result > * { flex: none; max-width: 100%; }
+  #result .label { font-size: clamp(26px, 5vw, 40px); color: #4B5563; }
+  #result .big { font-size: clamp(100px, 26vmin, 260px); line-height: 1; color: var(--btn); }
+  #result .points { font-size: clamp(30px, 6vw, 48px); margin-top: -6px; }
+  #result .headline { font-size: clamp(30px, 6vw, 52px); }
+  #result .headline.record { color: var(--go); }
+  #result .sub { font-size: clamp(24px, 4.5vw, 36px); color: #4B5563; }
+  #result .row { display: flex; flex-wrap: wrap; gap: 14px; justify-content: center; margin-top: 10px; }
+  .confetti { position: absolute; top: -30px; width: 14px; height: 22px; border-radius: 3px; pointer-events: none; animation: fall linear forwards; }
+
+  @keyframes blink { 50% { opacity: 0; } }
+  @keyframes pulse { 50% { transform: scale(1.12); } }
+  @keyframes shake { 20% { transform: translateX(-14px); } 40% { transform: translateX(12px); } 60% { transform: translateX(-8px); } 80% { transform: translateX(5px); } }
+  @keyframes popin { from { transform: scale(.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  @media (prefers-reduced-motion: reduce) {
+    .btn, .bar i { transition: none; }
+    .clock.low output, .ans.wrong, .banner.pop span, .ans::after { animation: none !important; }
+    .confetti { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<section class="screen" id="setup">
+  <div class="setup-body">
+    <h1><span id="title"></span><small id="length"></small></h1>
+    <div class="modes" id="modes" role="group"></div>
+    <div class="cards" id="classicCards"></div>
+    <div class="cards" id="drillCards" hidden></div>
+  </div>
+  <div class="setup-foot">
+    <div class="best" id="best"></div>
+    <div class="row">
+      <button class="btn go" id="go" type="button"></button>
+      <button class="btn plain small" id="toRecords" type="button"></button>
+    </div>
+  </div>
+</section>
+
+<section class="screen" id="records" hidden>
+  <div class="setup-body">
+    <h1 id="recTitle"></h1>
+    <div class="reclist" id="recList"></div>
+  </div>
+  <div class="setup-foot">
+    <button class="btn plain small" id="recBack" type="button"></button>
+  </div>
+</section>
+
+<section class="screen" id="play" hidden>
+  <div class="play-grid">
+    <div class="top">
+      <div class="clock" id="clock" role="timer">
+        <output id="secs">120</output>
+        <div class="bar"><i id="barfill"></i></div>
+      </div>
+      <div class="scorebox"><span aria-hidden="true">⭐</span><output id="score">0</output></div>
+    </div>
+    <div class="qwrap">
+      <div class="question" id="question">
+        <div class="eq"><span class="n" id="qa"></span><span class="op" id="qop"></span><span class="n" id="qb"></span><span class="n" id="qeq"></span></div>
+        <span class="ans" id="ans"></span>
+      </div>
+      <div class="hint" id="hint" aria-live="assertive"></div>
+      <div class="banner" id="banner"><span id="bannerText"></span></div>
+    </div>
+    <div class="pad" id="pad"></div>
+  </div>
+</section>
+
+<section class="screen" id="result" hidden>
+  <div class="label" id="rLabel"></div>
+  <div class="big" id="rScore"></div>
+  <div class="points" id="rPoints"></div>
+  <div class="headline" id="rHead"></div>
+  <div class="sub" id="rSub"></div>
+  <div class="sub" id="rTry"></div>
+  <div class="row">
+    <button class="btn go" id="again" type="button"></button>
+    <button class="btn plain" id="settings" type="button" style="min-height:88px;font-size:36px"></button>
+    <button class="btn plain small" id="resultRecords" type="button"></button>
+  </div>
+</section>
+
+<script>
+// ===================================================================
+//  CONFIG — edit these blocks to translate or change the game
+// ===================================================================
+
+const DURATION = 120;         // Classic: seconds per game (STRINGS.length.classic must say the same)
+const LIMITS = { lo: 0, hi: 20 };      // Classic: smallest / largest number the steppers allow
+const DRILL_LIMITS = { number: { lo: 0, hi: 20 }, max: { lo: 1, hi: 20 } };   // Drills: the number to practise, and how far up to go
+const DEFAULT_MODE = 'classic';        // 'classic' (a range for each number + any signs) or 'drills' (one number, 1 to max, + or ×, against the clock)
+const DEFAULTS_CLASSIC = {             // first-time settings of Classic: number 1 (left of the sign), number 2 (right), and which signs
+  n1: { min: 1, max: 10 },
+  n2: { min: 1, max: 10 },
+  ops: { add: true, sub: false, mul: false },
+};
+const DEFAULTS_DRILL = { number: 6, max: 9, op: 'add' };   // first-time settings of Drills
+const DRILL_FIRST_PASS = { add: 'random', mul: 'ordered' };   // step 1 of a drill, 6×1 … 6×9 once: in order, or shuffled? (for + the answers would just go up by 1, so it is shuffled)
+
+// Every user-visible string lives here.
+const STRINGS = {
+  lang: 'en-US',
+  pageTitle: 'Quick maths',
+  title: 'Quick maths',
+  length: { classic: '⏱ 2 minutes', drills: '⏱ Fastest time wins' },
+  ops: {
+    add: { name: 'Adding', sym: '+' },
+    sub: { name: 'Subtracting', sym: '−' },
+    mul: { name: 'Multiplying', sym: '×' },
+  },
+  modes: { classic: 'Classic', drills: 'Drills' },
+  numbers: { n1: 'First number', n2: 'Second number' },   // Classic: the number before / after the sign
+  drill: { number: 'Number', upTo: 'Up to' },            // Drills: the number to practise, and the biggest one it is asked with
+  drillName: 'Drill',
+  equals: '=',
+  on: '✓', off: '✗',
+  from: 'from', to: 'to',
+  go: 'Go!',
+  noRecord: '🏆 No record yet. Be the first!',
+  pickOne: 'Pick something to practise!',
+  records: '🏆 Records',
+  back: '← Back',
+  noRecords: 'No records yet. Play a game!',
+  deleteRecord: { ask: 'Delete this record?', yes: 'Yes, delete', no: 'Keep it' },
+  duration: (s) => (s % 60 === 0 ? `${s / 60} min` : `${s} sec`),
+  setOn: (d) => `set ${d}`,
+  attempts: (n) => `${n} ${n === 1 ? 'attempt' : 'attempts'}`,
+  attemptNo: (n) => `Attempt ${n}`,
+  record: (v) => `🏆 Record: ${v}`,
+  ready: ['3', '2', '1'],
+  start: 'Go!',
+  tryAgain: 'Try again!',
+  timesUp: "Time's up!",
+  done: 'Done! 🎉',
+  scoreLabel: 'Your score',
+  timeLabel: 'Your time',
+  points: (n) => (n === 1 ? 'point' : 'points'),
+  seconds: 'seconds',
+  timeNum: (t) => (t / 10).toLocaleString(STRINGS.lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),   // t = tenths of a second
+  time: (t) => `${STRINGS.timeNum(t)}s`,
+  progress: (done, total) => `${done}/${total}`,
+  firstScore: 'First score saved! 🌟',
+  newRecord: (old) => `New record! 🎉 (before: ${old})`,
+  tied: 'You matched your record! 👏',
+  below: (best) => `Your record is ${best}. Can you beat it?`,
+  slips: (n) => (n === 0 ? 'No slips! 🌟' : `${n} ${n === 1 ? 'slip' : 'slips'}`),
+  again: '▶ Play again',
+  settings: '⚙ Change game',
+  aria: {
+    modes: 'Kind of game',
+    toggle: (name) => `${name} on or off`,
+    minus: 'Smaller', plus: 'Bigger',
+    min: (name) => `${name}: smallest number`,
+    max: (name) => `${name}: biggest number`,
+    drillNumber: 'Number to practise',
+    drillMax: 'Go up to',
+    time: 'Seconds left',
+    elapsed: 'Seconds so far',
+    score: 'Points',
+    progress: 'Questions done out of questions to do',
+    key: (d) => String(d),
+    back: 'Delete last digit',
+    playThis: (what) => `Play ${what}`,
+    deleteThis: (what) => `Delete the record for ${what}`,
+  },
+};
+
+// ===================================================================
+//  Setup
+// ===================================================================
+(() => {
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
+const reducedMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = randInt(0, i); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+const OPS = {
+  add: { fn: (a, b) => a + b },
+  sub: { fn: (a, b) => a - b, bigFirst: true },      // never a negative answer: see makeQuestion
+  mul: { fn: (a, b) => a * b },
+};
+const OP_ORDER = ['add', 'sub', 'mul'];
+const DRILL_OPS = ['add', 'mul'];                     // order doesn't matter (+ and × can be swapped), so a drill can show the number on either side
+const MODES = ['classic', 'drills'];
+const CONFETTI = ['#D62839', '#E8590C', '#C98A00', '#2B9348', '#1C64D8', '#7A35C7', '#D6336C'];
+
+// ---- Browser storage (optional: the game works without it) -----------
+// The first key kept the name of the game that is now called Classic (it used to be "Custom", next to an older Classic).
+const KEY_SETTINGS = 'quickmaths.custom.v1';   // { mode, n1, n2, ops } (which game is picked + Classic's settings)
+const KEY_DRILL = 'quickmaths.drill.v1';       // { number, max, op } (Drills' settings)
+const KEY_RECORDS = 'quickmaths.records.v1';   // { configKey: best score } (Classic: points, higher is better; Drills: tenths of a second, lower is better)
+const KEY_META = 'quickmaths.meta.v1';         // { configKey: { plays, date } } (date = when the record was set, YYYY-MM-DD)
+function store(key, value) {
+  try {
+    if (value === undefined) return JSON.parse(localStorage.getItem(key));
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (e) { /* private window or blocked storage */ }
+  return null;
+}
+
+// A {min, max} pair kept inside LIMITS and in order; anything unreadable falls back to the default d.
+function fitRange(s, d) {
+  s = s || {}; d = d || { min: LIMITS.lo, max: LIMITS.hi };
+  const min = Number.isInteger(s.min) ? clamp(s.min, LIMITS.lo, LIMITS.hi) : d.min;
+  const max = Number.isInteger(s.max) ? clamp(s.max, LIMITS.lo, LIMITS.hi) : d.max;
+  return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+const fitInt = (v, lim, d) => (Number.isInteger(v) ? clamp(v, lim.lo, lim.hi) : d);
+
+function loadClassic() {
+  const s = store(KEY_SETTINGS) || {}, d = DEFAULTS_CLASSIC, so = s.ops || {};
+  const ops = {};
+  for (const op of OP_ORDER) ops[op] = typeof so[op] === 'boolean' ? so[op] : d.ops[op];
+  return { n1: fitRange(s.n1, d.n1), n2: fitRange(s.n2, d.n2), ops };
+}
+function loadDrill() {
+  const s = store(KEY_DRILL) || {}, d = DEFAULTS_DRILL;
+  return { number: fitInt(s.number, DRILL_LIMITS.number, d.number), max: fitInt(s.max, DRILL_LIMITS.max, d.max), op: DRILL_OPS.includes(s.op) ? s.op : d.op };
+}
+const classic = loadClassic();                        // Classic: a range for each number + any signs
+const drill = loadDrill();                            // Drills: the number, how far up to go, and the sign
+let mode = (() => { const m = (store(KEY_SETTINGS) || {}).mode; return MODES.includes(m) ? m : DEFAULT_MODE; })();   // an old "custom" or "classic" pick is just Classic
+const saveSettings = () => { store(KEY_SETTINGS, { mode, ...classic }); store(KEY_DRILL, drill); };
+
+const isDrills = () => mode === 'drills';
+const opsOn = () => OP_ORDER.filter((op) => classic.ops[op]);
+const canPlay = () => isDrills() || opsOn().length > 0;
+
+// One record per configuration: same game, same numbers, same signs.
+//   Classic: '120s|n1:1-10|n2:1-4|ops:add,mul'     Drills: 'drill|n:6|max:9|op:add'
+const configKey = () => (isDrills()
+  ? `drill|n:${drill.number}|max:${drill.max}|op:${drill.op}`
+  : `${DURATION}s|n1:${classic.n1.min}-${classic.n1.max}|n2:${classic.n2.min}-${classic.n2.max}|ops:${opsOn().join(',')}`);
+const getRecord = () => { const r = store(KEY_RECORDS); const v = r && r[configKey()]; return Number.isInteger(v) ? v : null; };
+function setRecord(score) {
+  const r = store(KEY_RECORDS) || {};
+  r[configKey()] = score;
+  store(KEY_RECORDS, r);
+}
+// What a stored score looks like: points for Classic, seconds for Drills.
+const scoreText = (v, drilled) => (drilled ? STRINGS.time(v) : String(v));
+
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+
+// Count a finished game for this configuration (and stamp the date when it set a new record). Returns the attempt number.
+// A record that was saved before attempts were counted stands for one attempt already.
+function logGame(newBest, hadRecord) {
+  const meta = store(KEY_META) || {};
+  const m = meta[configKey()] = meta[configKey()] || {};
+  m.plays = (m.plays || (hadRecord ? 1 : 0)) + 1;
+  if (newBest) m.date = todayISO();
+  store(KEY_META, meta);
+  return m.plays;
+}
+
+// Before Classic and Custom were merged, the old Classic game used one range per operation: '120s|add1-4|mul1-4'.
+// When every operation shares one range, that is exactly today's game with number 1 = number 2 = that range, so those records are
+// rewritten under the new key (and merged with any record already there). Mixed ranges can't be expressed any more: they stay as
+// they are and show up in Records as rows that can't be replayed.
+function migrateRecords() {
+  const recs = store(KEY_RECORDS);
+  if (!recs) return;
+  const meta = store(KEY_META) || {};
+  let changed = false;
+  for (const key of Object.keys(recs)) {
+    const p = parseKey(key);
+    if (!Number.isInteger(recs[key]) || !p || !p.ops || p.ops.some((o) => o.min !== p.ops[0].min || o.max !== p.ops[0].max)) continue;
+    const { min, max } = p.ops[0];
+    const to = `${p.secs}s|n1:${min}-${max}|n2:${min}-${max}|ops:${p.ops.map((o) => o.op).join(',')}`;
+    const from = { score: recs[key], m: meta[key] || {} };
+    const into = Number.isInteger(recs[to]) ? { score: recs[to], m: meta[to] || {} } : null;
+    const keep = into && into.score >= from.score ? into : from;
+    recs[to] = keep.score;
+    meta[to] = { plays: (from.m.plays || 1) + (into ? into.m.plays || 1 : 0), date: keep.m.date };
+    delete recs[key]; delete meta[key];
+    changed = true;
+  }
+  if (changed) { store(KEY_RECORDS, recs); store(KEY_META, meta); }
+}
+
+// ---- Screens -----------------------------------------------------------
+const screens = { setup: $('setup'), play: $('play'), result: $('result'), records: $('records') };
+function show(name) {
+  for (const k in screens) screens[k].hidden = k !== name;
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+}
+
+// ===================================================================
+//  Setup screen
+// ===================================================================
+const classicEls = { ops: {} };                       // Classic: { n1, n2: { lo, hi }, ops: { add: { btn, state } } }
+const drillEls = { ops: {} };                         // Drills: { number, max: stepper, ops: { add: { btn, state } } }
+const modeEls = {};
+
+// A [−] n [+] control. `aria` names it for screen readers; onBump(±1) does the change.
+function stepper(label, aria, onBump) {
+  const field = document.createElement('div');
+  field.className = 'field';
+  field.innerHTML =
+    `${label ? `<span>${label}</span>` : ''}<div class="stepper"><button class="btn" type="button"></button><output></output><button class="btn" type="button"></button></div>`;
+  const [minus, plus] = field.querySelectorAll('button');
+  minus.textContent = '−'; plus.textContent = '+';
+  minus.setAttribute('aria-label', `${aria}: ${STRINGS.aria.minus}`);
+  plus.setAttribute('aria-label', `${aria}: ${STRINGS.aria.plus}`);
+  minus.onclick = () => onBump(-1);
+  plus.onclick = () => onBump(1);
+  return { field, minus, plus, out: field.querySelector('output') };
+}
+
+// The from / to pair of steppers for a range r = {min, max}.
+function rangeSteppers(name, r) {
+  const lo = stepper(STRINGS.from, STRINGS.aria.min(name), (d) => bump(r, 'min', d));
+  const hi = stepper(STRINGS.to, STRINGS.aria.max(name), (d) => bump(r, 'max', d));
+  const box = document.createElement('div');
+  box.className = 'range';
+  box.append(lo.field, hi.field);
+  return { box, lo, hi };
+}
+
+// A sign button (symbol, name, ✓/✗). `data-op` colours it.
+function signButton(op, onClick) {
+  const name = STRINGS.ops[op].name;
+  const b = document.createElement('button');
+  b.className = 'opbtn';
+  b.type = 'button';
+  b.dataset.op = op;
+  b.setAttribute('aria-label', STRINGS.aria.toggle(name));
+  b.innerHTML = '<span class="sym"></span><span class="name"></span><span class="state"></span>';
+  b.querySelector('.sym').textContent = STRINGS.ops[op].sym;
+  b.querySelector('.name').textContent = name;
+  b.onclick = onClick;
+  return b;
+}
+
+// A card with a static title (symbol + name) above its controls.
+function numberCard(sym, name, ...controls) {
+  const card = document.createElement('div');
+  card.className = 'card num';
+  const head = document.createElement('div');
+  head.className = 'opbtn static';
+  head.innerHTML = '<span class="sym"></span><span class="name"></span>';
+  head.querySelector('.sym').textContent = sym;
+  head.querySelector('.name').textContent = name;
+  card.append(head, ...controls);
+  return card;
+}
+
+function buildModes() {
+  $('modes').setAttribute('aria-label', STRINGS.aria.modes);
+  for (const m of MODES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'mode'; b.textContent = STRINGS.modes[m];
+    b.onclick = () => { mode = m; saveSettings(); renderSetup(); };
+    $('modes').appendChild(b);
+    modeEls[m] = b;
+  }
+}
+
+// A card of sign buttons; `ops` lists which, onPick(op) says what a tap does.
+function signsCard(ops, els, onPick) {
+  const signs = document.createElement('div');
+  signs.className = 'card signs';
+  for (const op of ops) {
+    const btn = signButton(op, () => { onPick(op); saveSettings(); renderSetup(); });
+    els.ops[op] = { btn, state: btn.querySelector('.state') };
+    signs.appendChild(btn);
+  }
+  return signs;
+}
+
+// Classic: [First number] [signs] [Second number], laid out like the question itself.
+function buildClassic() {
+  const rangeCard = (key, digit) => {
+    const { box, lo, hi } = rangeSteppers(STRINGS.numbers[key], classic[key]);
+    classicEls[key] = { lo, hi };
+    return numberCard(digit, STRINGS.numbers[key], box);
+  };
+  $('classicCards').append(
+    rangeCard('n1', '1'),
+    signsCard(OP_ORDER, classicEls, (op) => { classic.ops[op] = !classic.ops[op]; }),
+    rangeCard('n2', '2'));
+}
+
+// Drills: [Number] [+ or ×] [Up to], so it reads like the questions: 6 + 1 … 9.
+function buildDrills() {
+  const valueCard = (key, sym, name, aria) => {
+    const s = stepper('', aria, (d) => { drill[key] = clamp(drill[key] + d, DRILL_LIMITS[key].lo, DRILL_LIMITS[key].hi); saveSettings(); renderSetup(); });
+    drillEls[key] = s;
+    return numberCard(sym, name, s.field);
+  };
+  $('drillCards').append(
+    valueCard('number', '#', STRINGS.drill.number, STRINGS.aria.drillNumber),
+    signsCard(DRILL_OPS, drillEls, (op) => { drill.op = op; }),
+    valueCard('max', '…', STRINGS.drill.upTo, STRINGS.aria.drillMax));
+}
+
+function showRange(e, r) {
+  e.lo.out.textContent = r.min; e.hi.out.textContent = r.max;
+  e.lo.minus.disabled = r.min <= LIMITS.lo;
+  e.lo.plus.disabled = r.min >= LIMITS.hi;
+  e.hi.minus.disabled = r.max <= LIMITS.lo;
+  e.hi.plus.disabled = r.max >= LIMITS.hi;
+}
+
+function showSign(e, on) {
+  e.btn.classList.toggle('off', !on);
+  e.btn.setAttribute('aria-pressed', String(on));
+  e.state.textContent = on ? STRINGS.on : STRINGS.off;
+}
+
+function renderSetup() {
+  $('classicCards').hidden = isDrills();
+  $('drillCards').hidden = !isDrills();
+  $('length').textContent = STRINGS.length[mode];
+  for (const m of MODES) modeEls[m].setAttribute('aria-pressed', String(m === mode));
+  for (const op of OP_ORDER) showSign(classicEls.ops[op], classic.ops[op]);
+  showRange(classicEls.n1, classic.n1);
+  showRange(classicEls.n2, classic.n2);
+  for (const op of DRILL_OPS) showSign(drillEls.ops[op], drill.op === op);
+  for (const key of ['number', 'max']) {
+    const e = drillEls[key], v = drill[key], lim = DRILL_LIMITS[key];
+    e.out.textContent = v; e.minus.disabled = v <= lim.lo; e.plus.disabled = v >= lim.hi;
+  }
+  const any = canPlay();
+  const best = any ? getRecord() : null;
+  $('go').disabled = !any;                            // nothing selected: nothing to play
+  $('best').textContent = !any ? STRINGS.pickOne : best == null ? STRINGS.noRecord : STRINGS.record(scoreText(best, isDrills()));
+  $('best').classList.toggle('none', best == null);
+}
+
+// Move one end of a range r = {min, max} by d, pushing the other end along so min <= max.
+function bump(r, which, d) {
+  if (which === 'min') { r.min = clamp(r.min + d, LIMITS.lo, LIMITS.hi); if (r.min > r.max) r.max = r.min; }
+  else { r.max = clamp(r.max + d, LIMITS.lo, LIMITS.hi); if (r.max < r.min) r.min = r.max; }
+  saveSettings();
+  renderSetup();
+}
+
+// ===================================================================
+//  Game
+// ===================================================================
+// phase: 'ready' (3-2-1) -> 'run' -> 'over' (short "time's up" / "done" banner) -> result screen
+// Classic: 2 minutes, count the right answers. Drills: a fixed list of questions, count the time it takes to get through them.
+let g = null;
+let timers = [];                                      // pending setTimeouts, cleared when a game ends
+const later = (ms, fn) => { const t = setTimeout(fn, ms); timers.push(t); return t; };
+const clearTimers = () => { timers.forEach(clearTimeout); timers = []; };
+
+function makeQuestion() {
+  const ops = opsOn();
+  const { n1, n2 } = classic;
+  let q;
+  for (let tries = 0; tries < 12; tries++) {          // avoid asking the same thing twice in a row
+    const op = ops[randInt(0, ops.length - 1)];
+    let a = randInt(n1.min, n1.max), b = randInt(n2.min, n2.max);   // first number from n1's range, second from n2's
+    if (OPS[op].bigFirst && a < b) {                  // never a negative answer, but keep the first number first where possible:
+      if (n2.min <= a) b = randInt(n2.min, Math.min(n2.max, a));    // redraw the second number so it fits under the first
+      else [a, b] = [b, a];                           // the whole second range is above this first number: put the larger first
+    }
+    q = { op, a, b, ans: OPS[op].fn(a, b) };
+    if (!g.q || q.op !== g.q.op || q.a !== g.q.a || q.b !== g.q.b) break;
+  }
+  return q;
+}
+
+// The questions of a drill, for number 6, up to 9 (DRILL_FIRST_PASS says how step 1 is ordered):
+//   1. 6×1 … 6×9, once, the number always first (never 1×6), in order or shuffled
+//   2. then, all shuffled together: 6×1 … 6×9 twice as they are, and once turned round (1×6 … 9×6)
+// Mistakes are added at the end while she plays (see press).
+function buildDrill() {
+  const { number: n, max, op } = drill;
+  const make = (k, turn) => ({ op, a: turn ? k : n, b: turn ? n : k, ans: OPS[op].fn(n, k) });
+  const same = (p, q) => p.a === q.a && p.b === q.b;
+  const ks = Array.from({ length: max }, (_, i) => i + 1);
+  const first = ks.map((k) => make(k, false));
+  const step1 = DRILL_FIRST_PASS[op] === 'random' ? shuffle(first) : first;
+  const mix = [...first, ...first, ...ks.map((k) => make(k, true))];
+  let step2;
+  for (let tries = 0; tries < 50; tries++) {          // reshuffle until no question is asked twice in a row (step 1's last one included)
+    step2 = shuffle(mix);
+    const all = [step1[step1.length - 1], ...step2];
+    if (all.every((q, i) => i === 0 || !same(q, all[i - 1]))) break;
+  }
+  return [...step1, ...step2];
+}
+
+function nextQuestion() {
+  return isDrills() ? g.queue[g.pos++] : makeQuestion();
+}
+
+function showQuestion() {
+  const q = g.q;
+  $('qa').textContent = q.a;
+  $('qop').textContent = STRINGS.ops[q.op].sym;
+  $('qop').style.setProperty('--c', `var(--${q.op})`);
+  $('qb').textContent = q.b;
+  $('qeq').textContent = STRINGS.equals;
+  g.typed = ''; g.failed = false;
+  renderTyped();
+}
+
+function renderTyped(wrong) {
+  const a = $('ans');
+  a.textContent = g.typed;
+  a.classList.toggle('full', g.typed.length >= String(g.q.ans).length);
+  a.classList.toggle('wrong', !!wrong);
+  if (wrong) { a.style.animation = 'none'; void a.offsetWidth; a.style.animation = ''; }
+}
+
+// Classic: points. Drills: questions done / questions to do (grows with every slip).
+function showScore() {
+  $('score').textContent = isDrills() ? STRINGS.progress(g.score, g.queue.length) : g.score;
+}
+
+function startGame() {
+  if (!canPlay()) return;
+  clearTimers();
+  g = { phase: 'ready', score: 0, slips: 0, q: null, typed: '', failed: false, lock: false, endAt: 0, startAt: 0, time: 0, queue: null, pos: 0 };
+  if (isDrills()) g.queue = buildDrill();
+  show('play');
+  showScore();
+  $('secs').textContent = isDrills() ? 0 : DURATION;
+  $('secs').setAttribute('aria-label', isDrills() ? STRINGS.aria.elapsed : STRINGS.aria.time);
+  $('score').setAttribute('aria-label', isDrills() ? STRINGS.aria.progress : STRINGS.aria.score);
+  $('clock').classList.remove('low');
+  $('barfill').style.transform = isDrills() ? 'scaleX(0)' : 'scaleX(1)';
+  $('hint').textContent = '';
+  g.q = nextQuestion(); showQuestion();
+
+  STRINGS.ready.forEach((t, i) => { if (i === 0) banner(t); else later(i * 800, () => banner(t)); });
+  later(STRINGS.ready.length * 800, () => banner(STRINGS.start));
+  later(STRINGS.ready.length * 800 + 500, begin);
+}
+
+function banner(text) {
+  const b = $('banner');
+  $('bannerText').textContent = text;
+  b.hidden = false;
+  b.classList.remove('pop'); void b.offsetWidth; b.classList.add('pop');
+}
+
+function begin() {
+  $('banner').hidden = true;
+  g.phase = 'run';
+  g.startAt = performance.now();
+  g.endAt = g.startAt + DURATION * 1000;
+  tick();
+}
+
+function tick() {
+  if (!g || g.phase !== 'run') return;
+  const now = performance.now();
+  if (isDrills()) {                                   // counting up; the bar shows how much of the list is done
+    $('secs').textContent = Math.floor((now - g.startAt) / 1000);
+    $('barfill').style.transform = `scaleX(${g.score / g.queue.length})`;
+    later(100, tick);
+    return;
+  }
+  const left = g.endAt - now;
+  if (left <= 0) return finish();
+  const secs = Math.ceil(left / 1000);
+  $('secs').textContent = secs;
+  $('barfill').style.transform = `scaleX(${left / (DURATION * 1000)})`;
+  $('clock').classList.toggle('low', secs <= 10);
+  later(Math.min(100, left), tick);
+}
+
+function press(d) {
+  if (!g || g.phase !== 'run' || g.lock) return;
+  const want = String(g.q.ans);
+  if (g.typed.length >= want.length) return;
+  g.typed += d;
+  renderTyped();
+  if (g.typed.length < want.length) return;
+
+  if (g.typed === want) {                             // right: a point, even after an earlier slip
+    g.score++;
+    showScore();
+    if (!reducedMotion()) $('score').animate([{ transform: 'scale(1.5)' }, { transform: 'scale(1)' }], { duration: 250, easing: 'ease-out' });
+    $('hint').textContent = '';
+    if (isDrills() && g.pos >= g.queue.length) return finish();   // the whole list, slips included, is done
+    g.q = nextQuestion(); showQuestion();
+  } else {                                            // wrong: stay on this question until it is right
+    if (!g.failed) {
+      g.failed = true; g.slips++;
+      if (isDrills()) { g.queue.push({ ...g.q }); showScore(); }   // a slip on the first try: ask it again at the very end
+    }
+    g.lock = true;
+    renderTyped(true);
+    $('hint').textContent = STRINGS.tryAgain;
+    later(550, () => { g.lock = false; g.typed = ''; renderTyped(); });
+  }
+}
+
+function back() {
+  if (!g || g.phase !== 'run' || g.lock) return;
+  g.typed = g.typed.slice(0, -1);
+  renderTyped();
+}
+
+function finish() {
+  g.phase = 'over';
+  clearTimers();
+  if (isDrills()) {
+    g.time = Math.round((performance.now() - g.startAt) / 100);   // tenths of a second
+    $('secs').textContent = Math.floor(g.time / 10);
+    $('barfill').style.transform = 'scaleX(1)';
+  } else {
+    $('secs').textContent = 0;
+    $('barfill').style.transform = 'scaleX(0)';
+  }
+  $('clock').classList.remove('low');
+  $('hint').textContent = '';
+  banner(isDrills() ? STRINGS.done : STRINGS.timesUp);
+  later(1300, showResult);
+}
+
+// ===================================================================
+//  Result screen
+// ===================================================================
+function showResult() {
+  const drilled = isDrills();
+  const prev = getRecord(), score = drilled ? g.time : g.score;
+  const isRecord = prev == null || (drilled ? score < prev : score > prev);   // Drills: the shorter time wins
+  let head;
+  if (prev == null) head = STRINGS.firstScore;
+  else if (isRecord) head = STRINGS.newRecord(scoreText(prev, drilled));
+  else if (score === prev) head = STRINGS.tied;
+  else head = STRINGS.below(scoreText(prev, drilled));
+  if (isRecord) setRecord(score);
+  const attempt = logGame(isRecord, prev != null);
+
+  $('rLabel').textContent = drilled ? STRINGS.timeLabel : STRINGS.scoreLabel;
+  $('rScore').textContent = drilled ? STRINGS.timeNum(score) : score;
+  $('rPoints').textContent = drilled ? STRINGS.seconds : STRINGS.points(score);
+  $('rHead').textContent = head;
+  $('rHead').classList.toggle('record', isRecord);
+  $('rSub').textContent = STRINGS.slips(g.slips);
+  $('rTry').textContent = STRINGS.attemptNo(attempt);
+  show('result');
+  if (isRecord && (drilled || score > 0)) confetti();
+}
+
+function confetti() {
+  if (reducedMotion()) return;
+  const host = $('result');
+  for (let i = 0; i < 48; i++) {
+    const c = document.createElement('i');
+    c.className = 'confetti';
+    c.style.left = `${Math.random() * 100}%`;
+    c.style.background = CONFETTI[i % CONFETTI.length];
+    c.style.animationDuration = `${2 + Math.random() * 2.5}s`;
+    c.style.animationDelay = `${Math.random() * 0.8}s`;
+    host.appendChild(c);
+    setTimeout(() => c.remove(), 5500);
+  }
+}
+
+function toSetup() {
+  clearTimers();
+  g = null;
+  renderSetup();
+  show('setup');
+}
+
+// ===================================================================
+//  Records screen: one row per configuration ever played
+// ===================================================================
+let recordsFrom = 'setup';                             // where Back returns to
+let asking = null;                                     // the record key whose row is asking "Delete this record?"
+
+function deleteRecord(key) {
+  const recs = store(KEY_RECORDS) || {}, meta = store(KEY_META) || {};
+  delete recs[key]; delete meta[key];
+  store(KEY_RECORDS, recs); store(KEY_META, meta);
+}
+
+// Classic: '120s|n1:1-10|n2:1-4|ops:add,mul' -> { secs: 120, n1: {min, max}, n2: {min, max}, signs: ['add', 'mul'] }
+// Drills:  'drill|n:6|max:9|op:add' -> { drill: true, number: 6, max: 9, op: 'add' }
+// Old Classic (one range per operation, can't be replayed any more): '120s|add1-4|mul1-4' -> { secs: 120, ops: [{ op: 'add', min: 1, max: 4 }, ...] }
+// (null if unreadable)
+function parseKey(key) {
+  const d = key.match(/^drill\|n:(\d+)\|max:(\d+)\|op:(\w+)$/);
+  if (d) return DRILL_OPS.includes(d[3]) ? { drill: true, number: +d[1], max: +d[2], op: d[3] } : null;
+  const [dur, ...rest] = key.split('|');
+  const secs = parseInt(dur, 10);
+  if (!(secs > 0)) return null;
+  const m1 = (rest[0] || '').match(/^n1:(\d+)-(\d+)$/);
+  if (m1) {
+    const m2 = (rest[1] || '').match(/^n2:(\d+)-(\d+)$/), m3 = (rest[2] || '').match(/^ops:(.+)$/);
+    const signs = m3 ? m3[1].split(',') : [];
+    return m2 && rest.length === 3 && signs.every((s) => OP_ORDER.includes(s))
+      ? { secs, n1: { min: +m1[1], max: +m1[2] }, n2: { min: +m2[1], max: +m2[2] }, signs } : null;
+  }
+  const ops = rest.map((p) => p.match(/^(add|sub|mul)(\d+)-(\d+)$/)).filter(Boolean)
+    .map((m) => ({ op: m[1], min: +m[2], max: +m[3] }));
+  return ops.length && ops.length === rest.length ? { secs, ops } : null;
+}
+
+const rangeText = (r) => (r.min === r.max ? `${r.min}` : `${r.min}–${r.max}`);
+
+// What a configuration is, as chips (they read like the question: 1–10 × 1–4, 6 + 1–9) and as words for screen readers.
+function describe(p) {
+  const chip = (text, op) => ({ text, color: op ? `var(--${op})` : 'var(--num)' });
+  if (p.drill) {
+    const upTo = rangeText({ min: 1, max: p.max });
+    return {
+      chips: [chip(String(p.number)), chip(STRINGS.ops[p.op].sym, p.op), chip(upTo)],
+      words: `${p.number} ${STRINGS.ops[p.op].sym} ${upTo}`,
+    };
+  }
+  if (p.n1) {
+    return {
+      chips: [chip(rangeText(p.n1)), ...p.signs.map((s) => chip(STRINGS.ops[s].sym, s)), chip(rangeText(p.n2))],
+      words: `${rangeText(p.n1)} ${p.signs.map((s) => STRINGS.ops[s].sym).join(' ')} ${rangeText(p.n2)}`,
+    };
+  }
+  return {
+    chips: p.ops.map((o) => chip(`${STRINGS.ops[o.op].sym} ${o.min}–${o.max}`, o.op)),
+    words: p.ops.map((o) => `${STRINGS.ops[o.op].name} ${o.min}–${o.max}`).join(', '),
+  };
+}
+
+const niceDate = (iso) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(STRINGS.lang, { day: 'numeric', month: 'short' });
+};
+
+function renderRecords() {
+  const recs = store(KEY_RECORDS) || {}, meta = store(KEY_META) || {};
+  const rows = Object.keys(recs).filter((k) => Number.isInteger(recs[k])).map((k) => ({ key: k, parsed: parseKey(k), score: recs[k], m: meta[k] || {} }))
+    .filter((r) => r.parsed)
+    .sort((a, b) => (b.m.date || '').localeCompare(a.m.date || '') || b.score - a.score);   // newest records first, undated last
+  const list = $('recList'), scroller = list.parentNode, top = scroller.scrollTop;
+  list.textContent = '';
+  if (!rows.length) {
+    const e = document.createElement('div');
+    e.className = 'empty'; e.textContent = STRINGS.noRecords;
+    list.appendChild(e);
+    return;
+  }
+  for (const r of rows) {
+    const row = document.createElement('div');
+    row.className = 'rec';
+    const what = document.createElement('div');
+    what.className = 'what';
+    const chips = document.createElement('div');
+    chips.className = 'chips';
+    const info = describe(r.parsed);
+    for (const ch of info.chips) {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.style.setProperty('--c', ch.color);
+      c.textContent = ch.text;
+      chips.appendChild(c);
+    }
+    const meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = [r.parsed.drill ? STRINGS.drillName : STRINGS.duration(r.parsed.secs), STRINGS.attempts(r.m.plays || 1), r.m.date ? STRINGS.setOn(niceDate(r.m.date)) : null]
+      .filter(Boolean).join(' · ');
+    what.append(chips, meta);
+    if (r.key === asking) {                            // ask first; nothing is deleted until "Yes"
+      row.classList.add('asking');
+      const ask = document.createElement('div');
+      ask.className = 'ask';
+      const q = document.createElement('span');
+      q.className = 'q'; q.textContent = STRINGS.deleteRecord.ask;
+      const no = document.createElement('button');
+      no.type = 'button'; no.className = 'btn'; no.textContent = STRINGS.deleteRecord.no;
+      no.onclick = () => { asking = null; renderRecords(); };
+      const yes = document.createElement('button');
+      yes.type = 'button'; yes.className = 'btn danger'; yes.textContent = STRINGS.deleteRecord.yes;
+      yes.onclick = () => { deleteRecord(r.key); asking = null; renderRecords(); };
+      ask.append(q, no, yes);
+      row.append(what, ask);
+      list.appendChild(row);
+      no.focus();                                      // the safe choice is the default
+      continue;
+    }
+    const score = document.createElement('div');
+    score.className = r.parsed.drill ? 'score time' : 'score';
+    score.textContent = scoreText(r.score, !!r.parsed.drill);
+    row.append(what, score);
+    if (r.parsed.drill || (r.parsed.n1 && r.parsed.secs === DURATION)) {   // Classic can only replay games of the current length
+      const play = document.createElement('button');
+      play.type = 'button'; play.className = 'btn'; play.textContent = '▶';
+      play.setAttribute('aria-label', STRINGS.aria.playThis(info.words));
+      play.onclick = () => useConfig(r.parsed);
+      row.appendChild(play);
+    }
+    const del = document.createElement('button');
+    del.type = 'button'; del.className = 'btn del'; del.textContent = '🗑';
+    del.setAttribute('aria-label', STRINGS.aria.deleteThis(info.words));
+    del.onclick = () => { asking = r.key; renderRecords(); };
+    row.appendChild(del);
+    list.appendChild(row);
+  }
+  scroller.scrollTop = top;
+}
+
+// Load a past configuration into the setup screen.
+function useConfig(p) {
+  if (p.drill) {
+    mode = 'drills';
+    Object.assign(drill, { number: fitInt(p.number, DRILL_LIMITS.number, drill.number), max: fitInt(p.max, DRILL_LIMITS.max, drill.max), op: p.op });
+  } else {
+    mode = 'classic';
+    Object.assign(classic.n1, fitRange(p.n1));
+    Object.assign(classic.n2, fitRange(p.n2));
+    for (const op of OP_ORDER) classic.ops[op] = p.signs.includes(op);
+  }
+  saveSettings();
+  toSetup();
+}
+
+function openRecords(from) {
+  recordsFrom = from;
+  asking = null;
+  renderRecords();
+  show('records');
+  $('recList').parentNode.scrollTop = 0;
+}
+
+function closeRecords() {
+  if (recordsFrom === 'result' && g) show('result'); else toSetup();
+}
+
+// ===================================================================
+//  Wiring
+// ===================================================================
+function init() {
+  document.title = STRINGS.pageTitle;
+  document.documentElement.lang = STRINGS.lang.split('-')[0];
+  $('title').textContent = STRINGS.title;
+  $('go').textContent = STRINGS.go;
+  $('again').textContent = STRINGS.again;
+  $('settings').textContent = STRINGS.settings;
+  $('toRecords').textContent = STRINGS.records;
+  $('resultRecords').textContent = STRINGS.records;
+  $('recTitle').textContent = STRINGS.records;
+  $('recBack').textContent = STRINGS.back;
+  // longest possible answer: the biggest product either game can ask for
+  $('ans').style.setProperty('--digits', String(Math.max(LIMITS.hi * LIMITS.hi, DRILL_LIMITS.number.hi * DRILL_LIMITS.max.hi)).length);
+
+  migrateRecords();
+
+  // On-screen keypad: 7 8 9 / 4 5 6 / 1 2 3 / (blank) 0 ⌫
+  const pad = $('pad');
+  ['7', '8', '9', '4', '5', '6', '1', '2', '3', '', '0', '⌫'].forEach((k) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'btn';
+    if (k === '') { b.className += ' gap'; b.disabled = true; b.tabIndex = -1; b.setAttribute('aria-hidden', 'true'); }
+    else if (k === '⌫') { b.className += ' back'; b.textContent = k; b.setAttribute('aria-label', STRINGS.aria.back); b.onclick = back; }
+    else { b.textContent = k; b.setAttribute('aria-label', STRINGS.aria.key(k)); b.onclick = () => press(k); }
+    pad.appendChild(b);
+  });
+
+  buildModes();
+  buildClassic();
+  buildDrills();
+  renderSetup();
+
+  $('go').onclick = startGame;
+  $('again').onclick = startGame;
+  $('settings').onclick = toSetup;
+  $('toRecords').onclick = () => openRecords('setup');
+  $('resultRecords').onclick = () => openRecords('result');
+  $('recBack').onclick = closeRecords;
+
+  addEventListener('keydown', (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (g && g.phase === 'run') {
+      if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
+      else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); back(); }
+      return;
+    }
+    // Enter starts a game from the setup / result screens (buttons handle their own Enter)
+    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+      if (!screens.setup.hidden || !screens.result.hidden) { e.preventDefault(); startGame(); }
+    }
+  });
+
+  show('setup');
+}
+
+if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();
+})();
+</script>
+</body>
+</html>
