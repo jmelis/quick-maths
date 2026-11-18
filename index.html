@@ -131,6 +131,7 @@
     grid-template-areas: "top" "q" "pad";
   }
   .top { grid-area: top; display: flex; align-items: center; gap: 14px; }
+  .btn.quit { flex: none; padding: 0; font-size: 30px; }
   .clock { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; }
   .clock output { font-size: clamp(44px, 9vw, 72px); min-width: 2.1ch; text-align: right; line-height: 1; font-variant-numeric: tabular-nums; }
   .bar { flex: 1; height: 18px; border-radius: 9px; background: #E5DFCE; overflow: hidden; }
@@ -163,6 +164,18 @@
     background: var(--bg); font-size: clamp(80px, 26vmin, 240px); color: var(--btn);
   }
   .banner.pop span { display: inline-block; animation: popin .7s ease-out; }
+  /* ✕ pressed: the game is paused and the question hidden until she picks one */
+  .pause {
+    position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px;
+    text-align: center; background: var(--bg);
+  }
+  .pause .q { font-size: clamp(30px, 7vmin, 56px); }
+  .pause .row { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .pause .btn { min-height: 72px; padding: 0 28px; border-radius: 36px; font-size: clamp(26px, 5vmin, 36px); }
+  .pause .btn.keep { background: var(--go); }
+  .pause .btn.stop { background: var(--bad); }
+  #play.paused .pad { opacity: .35; pointer-events: none; }
+  #play.paused .clock output { animation-play-state: paused; }
 
   .pad { grid-area: pad; display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: 10px; width: min(100%, 520px); justify-self: center; min-height: 0; }
   .pad .btn { width: 100%; height: 100%; min-height: 0; border-radius: 22px; font-size: clamp(30px, 7vmin, 56px); }
@@ -231,6 +244,7 @@
 <section class="screen" id="play" hidden>
   <div class="play-grid">
     <div class="top">
+      <button class="btn plain quit" id="quit" type="button">✕</button>
       <div class="clock" id="clock" role="timer">
         <output id="secs">120</output>
         <div class="bar"><i id="barfill"></i></div>
@@ -244,6 +258,13 @@
       </div>
       <div class="hint" id="hint" aria-live="assertive"></div>
       <div class="banner" id="banner"><span id="bannerText"></span></div>
+      <div class="pause" id="pause" hidden>
+        <div class="q" id="pauseAsk"></div>
+        <div class="row">
+          <button class="btn keep" id="keepPlaying" type="button"></button>
+          <button class="btn stop" id="stopGame" type="button"></button>
+        </div>
+      </div>
     </div>
     <div class="pad" id="pad"></div>
   </div>
@@ -305,6 +326,7 @@ const STRINGS = {
   back: '← Back',
   noRecords: 'No records yet. Play a game!',
   deleteRecord: { ask: 'Delete this record?', yes: 'Yes, delete', no: 'Keep it' },
+  quit: { ask: 'Stop this game?', yes: '■ Stop', no: '▶ Keep playing' },   // after ✕ during a game; a stopped game isn't saved
   duration: (s) => (s % 60 === 0 ? `${s / 60} min` : `${s} sec`),
   setOn: (d) => `set ${d}`,
   attempts: (n) => `${n} ${n === 1 ? 'attempt' : 'attempts'}`,
@@ -343,6 +365,7 @@ const STRINGS = {
     progress: 'Questions done out of questions to do',
     key: (d) => String(d),
     back: 'Delete last digit',
+    quit: 'Stop the game',
     playThis: (what) => `Play ${what}`,
     deleteThis: (what) => `Delete the record for ${what}`,
   },
@@ -629,7 +652,7 @@ function bump(r, which, d) {
 // ===================================================================
 //  Game
 // ===================================================================
-// phase: 'ready' (3-2-1) -> 'run' -> 'over' (short "time's up" / "done" banner) -> result screen
+// phase: 'ready' (3-2-1) -> 'run' (<-> 'paused' while ✕ asks "Stop this game?") -> 'over' (short "time's up" / "done" banner) -> result screen
 // Classic: 2 minutes, count the right answers. Drills: a fixed list of questions, count the time it takes to get through them.
 let g = null;
 let timers = [];                                      // pending setTimeouts, cleared when a game ends
@@ -705,8 +728,9 @@ function showScore() {
 function startGame() {
   if (!canPlay()) return;
   clearTimers();
-  g = { phase: 'ready', score: 0, slips: 0, q: null, typed: '', failed: false, lock: false, endAt: 0, startAt: 0, time: 0, queue: null, pos: 0 };
+  g = { phase: 'ready', score: 0, slips: 0, q: null, typed: '', failed: false, lock: false, endAt: 0, startAt: 0, time: 0, queue: null, pos: 0, pausedAt: 0 };
   if (isDrills()) g.queue = buildDrill();
+  hidePause();
   show('play');
   showScore();
   $('secs').textContent = isDrills() ? 0 : DURATION;
@@ -788,6 +812,36 @@ function back() {
   renderTyped();
 }
 
+// ✕: stop the clock, hide the question and ask "Stop this game?". During the 3-2-1 nothing has been played yet, so just leave.
+function askQuit() {
+  if (!g) return;
+  if (g.phase === 'ready') return toSetup();
+  if (g.phase !== 'run') return;                      // 'over': the result is on its way
+  g.phase = 'paused';
+  g.pausedAt = performance.now();
+  clearTimers();                                      // the clock, and the reset after a slip (resume redoes it)
+  screens.play.classList.add('paused');
+  $('pause').hidden = false;
+  $('keepPlaying').focus();                           // the safe choice is the default
+}
+
+// "Keep playing": the paused time doesn't count, in either game.
+function resume() {
+  if (!g || g.phase !== 'paused') return;
+  const away = performance.now() - g.pausedAt;
+  g.startAt += away; g.endAt += away;
+  if (g.lock) { g.lock = false; g.typed = ''; renderTyped(); }   // paused during a slip's shake
+  hidePause();
+  if (document.activeElement && document.activeElement.blur) document.activeElement.blur();
+  g.phase = 'run';
+  tick();
+}
+
+function hidePause() {
+  $('pause').hidden = true;
+  screens.play.classList.remove('paused');
+}
+
 function finish() {
   g.phase = 'over';
   clearTimers();
@@ -848,9 +902,42 @@ function confetti() {
 
 function toSetup() {
   clearTimers();
-  g = null;
+  g = null;                                           // a game stopped with ✕ ends here: no score, not counted
+  hidePause();
   renderSetup();
   show('setup');
+  applyUpdate();                                      // a new version found mid-game waited for this
+}
+
+// ===================================================================
+//  Updates
+// ===================================================================
+// A home-screen app on iOS is usually resumed rather than reloaded, and even a fresh launch may come from the HTTP cache, so it can
+// keep showing an old version long after a push. So on every launch and every return to the app, ask the server which version is
+// current (version.json, never cached); if it isn't this one, reload from a URL no cache has seen (?v=<version>).
+// Never in the middle of a game, or over a result she is looking at: then it waits until she is back on the setup screen.
+// BUILD is stamped with a hash of this file when it is published (.github/workflows/pages.yml); 'dev' (opened from disk) never checks.
+const BUILD = 'dev';
+let newBuild = null;
+
+async function checkForUpdate() {
+  if (BUILD === 'dev' || !/^https?:$/.test(location.protocol) || document.hidden) return;
+  try {
+    const r = await fetch(`version.json?t=${Date.now()}`, { cache: 'no-store' });
+    if (!r.ok) return;
+    const { build } = await r.json();
+    if (typeof build !== 'string' || !build || build === BUILD) return;
+    if (new URLSearchParams(location.search).get('v') === build) return;   // already reloaded for this version and still old: don't loop
+    newBuild = build;
+    applyUpdate();
+  } catch (e) { /* offline or no version.json: keep this version */ }
+}
+
+function applyUpdate() {
+  if (!newBuild || (screens.setup.hidden && screens.records.hidden)) return;
+  const url = new URL(location.href);
+  url.searchParams.set('v', newBuild);
+  location.replace(url.href);                         // settings and records are already saved in localStorage
 }
 
 // ===================================================================
@@ -1029,6 +1116,10 @@ function init() {
   $('resultRecords').textContent = STRINGS.records;
   $('recTitle').textContent = STRINGS.records;
   $('recBack').textContent = STRINGS.back;
+  $('quit').setAttribute('aria-label', STRINGS.aria.quit);
+  $('pauseAsk').textContent = STRINGS.quit.ask;
+  $('keepPlaying').textContent = STRINGS.quit.no;
+  $('stopGame').textContent = STRINGS.quit.yes;
   // longest possible answer: the biggest product either game can ask for
   $('ans').style.setProperty('--digits', String(Math.max(LIMITS.hi * LIMITS.hi, DRILL_LIMITS.number.hi * DRILL_LIMITS.max.hi)).length);
 
@@ -1056,9 +1147,17 @@ function init() {
   $('toRecords').onclick = () => openRecords('setup');
   $('resultRecords').onclick = () => openRecords('result');
   $('recBack').onclick = closeRecords;
+  $('quit').onclick = askQuit;
+  $('keepPlaying').onclick = resume;
+  $('stopGame').onclick = toSetup;
 
   addEventListener('keydown', (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (e.key === 'Escape' && g && !screens.play.hidden) {   // Esc = ✕; Esc again = keep playing
+      e.preventDefault();
+      if (g.phase === 'paused') resume(); else askQuit();
+      return;
+    }
     if (g && g.phase === 'run') {
       if (/^[0-9]$/.test(e.key)) { e.preventDefault(); press(e.key); }
       else if (e.key === 'Backspace' || e.key === 'Delete') { e.preventDefault(); back(); }
@@ -1071,6 +1170,10 @@ function init() {
   });
 
   show('setup');
+
+  checkForUpdate();
+  document.addEventListener('visibilitychange', checkForUpdate);       // back to the app (iOS resumes it without reloading)
+  addEventListener('pageshow', (e) => { if (e.persisted) checkForUpdate(); });   // restored from the back/forward cache
 }
 
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init); else init();

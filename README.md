@@ -9,4 +9,4 @@ Two games, picked with a switch at the top of the setup screen:
 
 Records are kept in the browser (`localStorage`), per game setup, with a Records screen to replay or delete them. Nothing leaves the device.
 
-Pushing to `main` publishes the page to GitHub Pages (`.github/workflows/pages.yml`).
+Pushing to `main` publishes the page to GitHub Pages (`.github/workflows/pages.yml`). Copies already open, such as an icon added to an iPhone's home screen, notice the new version the next time they are opened and reload themselves.

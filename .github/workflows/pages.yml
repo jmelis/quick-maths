@@ -23,10 +23,16 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - name: Collect the site (just the page)
+      # The page checks version.json each time it is opened or brought back, and reloads itself when the
+      # version there isn't its own BUILD (see "Updates" in index.html). The version is a hash of the page,
+      # so only a change to index.html makes home-screen copies reload, not a README edit.
+      - name: Collect the site (the page, stamped with its version, and version.json)
         run: |
           mkdir _site
-          cp index.html _site/
+          v=$(sha256sum index.html | cut -c1-12)
+          sed "s/^const BUILD = 'dev';/const BUILD = '$v';/" index.html > _site/index.html
+          test "$(grep -c "^const BUILD = '$v';" _site/index.html)" = 1 || { echo "::error::BUILD stamp not found in index.html"; exit 1; }
+          printf '{"build":"%s"}\n' "$v" > _site/version.json
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
