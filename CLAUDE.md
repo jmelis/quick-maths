@@ -27,3 +27,4 @@ A small arithmetic game for a young child, who is good at maths and puzzles. Fav
 - Strings shown to the learner live in one `STRINGS` object at the top of the script, so they can be translated.
 - Keep it a single file with no dependencies, so it keeps working when opened straight from disk.
 - Don't put personal details (names, birth dates) in this repo: it is public.
+- Git: the owner's preference is to always commit and push straight to `main` (which publishes the site). No pull requests, and no feature branches left unmerged.
